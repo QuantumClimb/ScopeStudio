@@ -45,7 +45,6 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/cors": "^2.8.18",
     "@types/express": "^5.0.2",
-    "@vercel/kv": "^3.0.0",
     "better-sqlite3": "^11.10.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

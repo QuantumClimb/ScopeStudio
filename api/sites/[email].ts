@@ -1,5 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { kv } from '@vercel/kv';
+import { createClient } from 'redis';
 import { SiteData } from '../../src/types';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -10,9 +10,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    // Create Redis client
+    const client = createClient({ url: process.env.REDIS_URL });
+    await client.connect();
+    
     if (req.method === 'GET') {
       // Get site data for user
-      const siteData = await kv.get(`site:${email}`);
+      const siteDataStr = await client.get(`site:${email}`);
+      const siteData = siteDataStr ? JSON.parse(siteDataStr) : null;
+      
+      await client.disconnect();
       return res.json({ success: true, siteData });
       
     } else if (req.method === 'POST') {
@@ -20,21 +27,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const siteData: SiteData = req.body;
       
       if (!siteData || !siteData.pages) {
+        await client.disconnect();
         return res.status(400).json({ success: false, error: 'Invalid site data' });
       }
       
-      await kv.set(`site:${email}`, siteData);
+      await client.set(`site:${email}`, JSON.stringify(siteData));
       
       // Add to user list for admin purposes
-      const userList = (await kv.get('admin:users') as string[]) || [];
+      const userListStr = await client.get('admin:users');
+      const userList = userListStr ? JSON.parse(userListStr) : [];
       if (!userList.includes(email)) {
         userList.push(email);
-        await kv.set('admin:users', userList);
+        await client.set('admin:users', JSON.stringify(userList));
       }
       
+      await client.disconnect();
       return res.json({ success: true, message: 'Site data saved successfully' });
       
     } else {
+      await client.disconnect();
       res.setHeader('Allow', ['GET', 'POST']);
       return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
