@@ -1,13 +1,13 @@
 import { SiteData, UserData } from '../types';
 
-// Vercel KV implementation for production
+// Redis implementation for production
 // In development, falls back to localStorage
 
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = import.meta.env.PROD;
 
 export class VercelDataService {
-  // Simple key-value operations using Vercel KV
-  private static async kvGet(key: string): Promise<any> {
+  // Simple key-value operations using Redis
+  private static async redisGet(key: string): Promise<any> {
     if (!isProduction) {
       // Development fallback to localStorage
       try {
@@ -18,17 +18,29 @@ export class VercelDataService {
       }
     }
 
-    // Production: Use Vercel KV
+    // Production: Use Redis via REST API
     try {
-      const { kv } = await import('@vercel/kv');
-      return await kv.get(key);
+      const response = await fetch('/api/redis/get', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ key }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Redis GET failed: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      return result.value;
     } catch (error) {
-      console.error('KV get error:', error);
+      console.error('Redis get error:', error);
       return null;
     }
   }
 
-  private static async kvSet(key: string, value: any): Promise<boolean> {
+  private static async redisSet(key: string, value: any): Promise<boolean> {
     if (!isProduction) {
       // Development fallback to localStorage
       try {
@@ -39,13 +51,23 @@ export class VercelDataService {
       }
     }
 
-    // Production: Use Vercel KV
+    // Production: Use Redis via REST API
     try {
-      const { kv } = await import('@vercel/kv');
-      await kv.set(key, value);
+      const response = await fetch('/api/redis/set', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ key, value }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Redis SET failed: ${response.statusText}`);
+      }
+      
       return true;
     } catch (error) {
-      console.error('KV set error:', error);
+      console.error('Redis set error:', error);
       return false;
     }
   }
@@ -53,23 +75,23 @@ export class VercelDataService {
   // User operations
   static async saveUser(userData: UserData): Promise<boolean> {
     const key = `user:${userData.email}`;
-    return await this.kvSet(key, userData);
+    return await this.redisSet(key, userData);
   }
 
   static async getUser(email: string): Promise<UserData | null> {
     const key = `user:${email}`;
-    return await this.kvGet(key);
+    return await this.redisGet(key);
   }
 
   // Site data operations
   static async saveSiteData(userEmail: string, siteData: SiteData): Promise<boolean> {
     const key = `site:${userEmail}`;
-    const success = await this.kvSet(key, siteData);
+    const success = await this.redisSet(key, siteData);
     
     if (success) {
       // Also save to user list for admin purposes
       await this.addToUserList(userEmail);
-      console.log('✅ Site data saved to Vercel KV for:', userEmail);
+      console.log('✅ Site data saved to Redis for:', userEmail);
     }
     
     return success;
@@ -77,7 +99,7 @@ export class VercelDataService {
 
   static async getSiteData(userEmail: string): Promise<SiteData | null> {
     const key = `site:${userEmail}`;
-    return await this.kvGet(key);
+    return await this.redisGet(key);
   }
 
   static async hasSiteData(userEmail: string): Promise<boolean> {
@@ -88,10 +110,10 @@ export class VercelDataService {
   // Admin operations
   private static async addToUserList(userEmail: string): Promise<void> {
     try {
-      const userList = await this.kvGet('admin:users') || [];
+      const userList = await this.redisGet('admin:users') || [];
       if (!userList.includes(userEmail)) {
         userList.push(userEmail);
-        await this.kvSet('admin:users', userList);
+        await this.redisSet('admin:users', userList);
       }
     } catch (error) {
       console.error('Error updating user list:', error);
@@ -99,7 +121,7 @@ export class VercelDataService {
   }
 
   static async getAllUsers(): Promise<string[]> {
-    return await this.kvGet('admin:users') || [];
+    return await this.redisGet('admin:users') || [];
   }
 
   // Client-specific operations for your workflow
@@ -117,7 +139,7 @@ export class VercelDataService {
     return sites;
   }
 
-  // Migration from localStorage to Vercel KV
+  // Migration from localStorage to Redis
   static async migrateFromLocalStorage(): Promise<boolean> {
     if (isProduction) {
       console.warn('Migration should only run in development');
@@ -125,7 +147,7 @@ export class VercelDataService {
     }
 
     try {
-      console.log('🔄 Starting migration from localStorage to Vercel KV...');
+      console.log('🔄 Starting migration from localStorage to Redis...');
       
       // Get user data from localStorage
       const userData = JSON.parse(localStorage.getItem('scope-user') || 'null');
@@ -141,7 +163,7 @@ export class VercelDataService {
         return false;
       }
       
-      // Save to KV (will use localStorage in dev, KV in prod)
+      // Save to Redis (will use localStorage in dev, Redis in prod)
       const userSaved = await this.saveUser(userData);
       const siteSaved = await this.saveSiteData(userData.email, siteData);
       
