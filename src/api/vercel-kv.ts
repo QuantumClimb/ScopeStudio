@@ -6,7 +6,7 @@ import { SiteData, UserData } from '../types';
 const isProduction = import.meta.env.PROD;
 
 export class VercelDataService {
-  // Simple key-value operations using Redis
+  // Simple key-value operations using Redis directly
   private static async redisGet(key: string): Promise<any> {
     if (!isProduction) {
       // Development fallback to localStorage
@@ -18,18 +18,17 @@ export class VercelDataService {
       }
     }
 
-    // Production: Use Redis via REST API
+    // Production: Use fetch to call our Redis API
     try {
       const response = await fetch('/api/redis/get', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key }),
       });
       
       if (!response.ok) {
-        throw new Error(`Redis GET failed: ${response.statusText}`);
+        console.error('Redis GET failed:', response.statusText);
+        return null;
       }
       
       const result = await response.json();
@@ -51,21 +50,15 @@ export class VercelDataService {
       }
     }
 
-    // Production: Use Redis via REST API
+    // Production: Use fetch to call our Redis API
     try {
       const response = await fetch('/api/redis/set', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key, value }),
       });
       
-      if (!response.ok) {
-        throw new Error(`Redis SET failed: ${response.statusText}`);
-      }
-      
-      return true;
+      return response.ok;
     } catch (error) {
       console.error('Redis set error:', error);
       return false;
@@ -92,6 +85,8 @@ export class VercelDataService {
       // Also save to user list for admin purposes
       await this.addToUserList(userEmail);
       console.log('✅ Site data saved to Redis for:', userEmail);
+    } else {
+      console.error('❌ Failed to save site data to Redis for:', userEmail);
     }
     
     return success;
@@ -99,7 +94,13 @@ export class VercelDataService {
 
   static async getSiteData(userEmail: string): Promise<SiteData | null> {
     const key = `site:${userEmail}`;
-    return await this.redisGet(key);
+    const data = await this.redisGet(key);
+    if (data) {
+      console.log('✅ Successfully retrieved site data from Redis for:', userEmail);
+    } else {
+      console.log('📭 No site data found in Redis for:', userEmail);
+    }
+    return data;
   }
 
   static async hasSiteData(userEmail: string): Promise<boolean> {
