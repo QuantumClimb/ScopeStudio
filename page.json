@@ -1,0 +1,52 @@
+{
+  "pages": [
+    {
+      "id": "home",
+      "name": "Home",
+      "title": "Build Better Websites, Faster",
+      "description": "Scope Studio helps you turn client copy into clean wireframes — instantly.",
+      "heroTitle": "Build Better Websites, Faster",
+      "heroSubheading": "Scope Studio helps you turn client copy into clean wireframes — instantly.",
+      "heroImageUrl": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&h=600&fit=crop",
+      "bodyContent": "No more back-and-forth over Word docs. Just write the content and see it come to life.\n\nScope Studio is your bridge between raw copy and real layout. It helps developers, writers, and clients stay aligned from day one.\n\nLaunch a visual wireframe with your content, get feedback, and export HTML/CSS when you're ready to build.\n\n• Edit hero sections and body text for each page\n• Add multiple pages and subpages to structure your site\n• Preview wireframes before design or code\n• Export clean HTML, CSS, and JS for dev handoff",
+      "bodyImageUrl": "https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&h=400&fit=crop",
+      "subpages": []
+    },
+    {
+      "id": "about",
+      "name": "About",
+      "title": "Made for Real-World Teams",
+      "description": "Whether you're a solo dev or part of an agency, Scope Studio keeps things moving.",
+      "heroTitle": "Made for Real-World Teams",
+      "heroSubheading": "Whether you're a solo dev or part of an agency, Scope Studio keeps things moving.",
+      "heroImageUrl": "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200&h=600&fit=crop",
+      "bodyContent": "Scope Studio was created to remove friction from content approval. No waiting on designs or struggling with placeholder text.\n\nBy giving your clients a real preview, you speed up approvals and reduce confusion.\n\nIt's fast, flexible, and designed for anyone who builds websites for a living.\n\n• Simple enough for clients, powerful enough for developers\n• Built with modern web workflows in mind\n• Focus on structure, not styling — that comes later\n• A product by Quantum Climb, a team building tools for the next generation of makers",
+      "bodyImageUrl": "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=800&h=400&fit=crop",
+      "subpages": []
+    },
+    {
+      "id": "services",
+      "name": "Services",
+      "title": "What You Can Do With Scope Studio",
+      "description": "It's more than a wireframe. It's a content-first workflow tool.",
+      "heroTitle": "What You Can Do With Scope Studio",
+      "heroSubheading": "It's more than a wireframe. It's a content-first workflow tool.",
+      "heroImageUrl": "https://images.unsplash.com/photo-1556761175-b413da4baf72?w=1200&h=600&fit=crop",
+      "bodyContent": "Use Scope Studio to plan websites, landing pages, service sites, or client projects with structured content.\n\nEverything you write is saved and organized, ready for design or development.\n\nExport when you're ready, or share previews with clients for instant feedback.\n\n• Build and preview multiple pages with ease\n• Switch between free and paid plans based on your needs\n• Use placeholder images to sketch out layouts\n• Export clean vanilla HTML/CSS/JS for any project",
+      "bodyImageUrl": "https://images.unsplash.com/photo-1553028826-f4804a6dba3b?w=800&h=400&fit=crop",
+      "subpages": []
+    },
+    {
+      "id": "contact",
+      "name": "Contact",
+      "title": "Get Started Today",
+      "description": "Ready to streamline your workflow? Let's build something together.",
+      "heroTitle": "Get Started Today",
+      "heroSubheading": "Ready to streamline your workflow? Let's build something together.",
+      "heroImageUrl": "https://images.unsplash.com/photo-1423666639041-f56000c27a9a?w=1200&h=600&fit=crop",
+      "bodyContent": "Ready to try Scope Studio? Sign up for free and start wireframing your next project.\n\nNeed help getting started? Our team is here to support you every step of the way.\n\nJoin thousands of developers, designers, and agencies already using Scope Studio to build better websites faster.\n\n• Start with the free plan — no credit card required\n• Upgrade to Pro when you need more features\n• Get support from our team when you need it\n• Join our community of makers and builders",
+      "bodyImageUrl": "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&h=400&fit=crop",
+      "subpages": []
+    }
+  ]
+} 
