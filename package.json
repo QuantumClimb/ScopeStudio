@@ -77,7 +77,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.9.0",
-    "@rollup/rollup-win32-x64-msvc": "^4.44.0",
     "@tailwindcss/typography": "^0.5.15",
     "@types/node": "^22.15.29",
     "@types/react": "^18.3.3",
@@ -97,5 +96,9 @@
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
     "vite": "^5.4.1"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "^4.44.0",
+    "@rollup/rollup-win32-x64-msvc": "^4.44.0"
   }
 }
