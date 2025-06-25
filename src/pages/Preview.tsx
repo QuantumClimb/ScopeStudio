@@ -6,52 +6,79 @@ import { WireframeBody } from "../components/WireframeBody";
 import { WireframeFooter } from "../components/WireframeFooter";
 import { ArrowLeft, Edit } from "lucide-react";
 import { SiteData, UserData } from "../types";
+import { VercelDataService } from "../api/vercel-kv";
 
 const Preview = () => {
   const [currentPageId, setCurrentPageId] = useState<string>("");
   const [siteData, setSiteData] = useState<SiteData>({ pages: [] });
   const [userData, setUserData] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Load data from localStorage on component mount
+  // Load data using VercelDataService on component mount
   useEffect(() => {
-    const savedUser = localStorage.getItem('scope-user');
-    if (savedUser) {
+    const loadData = async () => {
       try {
-        const user = JSON.parse(savedUser);
-        setUserData(user);
-        
-        const savedData = localStorage.getItem(`scope-site-${user.email}`);
-        if (savedData) {
-          const data = JSON.parse(savedData);
-          console.log('Loaded site data in preview:', data);
-          setSiteData(data);
-          if (data.pages.length > 0) {
-            setCurrentPageId(data.pages[0].id);
+        // First try to get user from localStorage (logged in session)
+        const savedUser = localStorage.getItem('scope-user');
+        if (savedUser) {
+          const user = JSON.parse(savedUser);
+          setUserData(user);
+          
+          // Get site data using VercelDataService (handles both dev and prod)
+          const siteData = await VercelDataService.getSiteData(user.email);
+          if (siteData) {
+            console.log('✅ Loaded site data in preview:', siteData);
+            setSiteData(siteData);
+            if (siteData.pages.length > 0) {
+              setCurrentPageId(siteData.pages[0].id);
+            }
+          } else {
+            console.log('❌ No site data found for preview');
           }
         }
       } catch (error) {
-        console.error('Error parsing saved data:', error);
+        console.error('❌ Error loading preview data:', error);
+      } finally {
+        setLoading(false);
       }
-    }
+    };
+
+    loadData();
   }, []);
 
   const handlePageChange = (pageId: string) => {
-    console.log('Preview page change:', pageId);
+    console.log('🔄 Preview page change:', pageId);
     setCurrentPageId(pageId);
   };
 
   const currentPage = siteData.pages.find(p => p.id === currentPageId);
 
-  console.log('Preview state:', { 
+  console.log('🔍 Preview state:', { 
     currentPageId, 
-    currentPage
+    currentPage,
+    userData: userData?.email,
+    totalPages: siteData.pages.length
   });
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-4">Loading preview...</h2>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
 
   if (!userData || !currentPage) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-semibold mb-4">Loading preview...</h2>
+          <h2 className="text-xl font-semibold mb-4">No preview data available</h2>
+          <p className="text-gray-600 mb-4">
+            {!userData ? 'Please log in first.' : 'No pages found to preview.'}
+          </p>
           <Link to="/dashboard" className="text-indigo-600 hover:text-indigo-800">
             Back to Dashboard
           </Link>
