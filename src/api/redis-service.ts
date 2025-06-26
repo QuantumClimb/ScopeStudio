@@ -5,7 +5,7 @@ import { SiteData, UserData } from '../types';
 
 const isProduction = import.meta.env.PROD;
 
-export class VercelDataService {
+export class RedisDataService {
   // Simple key-value operations using Redis directly
   private static async redisGet(key: string): Promise<any> {
     if (!isProduction) {
