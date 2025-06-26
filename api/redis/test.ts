@@ -1,7 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from 'redis';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export async function handler(req: VercelRequest, res: VercelResponse) {
+  let client;
+  
   try {
     // Check if Redis URL is available
     const redisUrl = process.env.REDIS_URL;
@@ -9,54 +11,83 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!redisUrl) {
       return res.status(500).json({ 
         error: 'REDIS_URL environment variable not found',
-        hasRedisUrl: false
+        hasRedisUrl: false,
+        allEnvVars: Object.keys(process.env).filter(key => key.includes('REDIS'))
       });
     }
 
-    // Log the Redis URL format (without exposing credentials)
-    const urlParts = redisUrl.includes('@') ? redisUrl.split('@') : ['', redisUrl];
-    const hostPart = urlParts[1] || urlParts[0];
-    
-    console.log('Redis URL format check:', {
-      hasCredentials: redisUrl.includes('@'),
-      hasRedis: redisUrl.startsWith('redis://') || redisUrl.startsWith('rediss://'),
-      hostPart: hostPart?.substring(0, 20) + '...' // First 20 chars of host
+    console.log('Starting Redis connection test...');
+    console.log('Redis URL exists:', !!redisUrl);
+    console.log('Redis URL protocol:', redisUrl.split('://')[0]);
+
+    // Create Redis client with timeout configuration
+    console.log('Creating Redis client...');
+    client = createClient({
+      url: redisUrl,
+      socket: {
+        connectTimeout: 10000 // 10 seconds
+      }
     });
 
-    // Try to create and connect to Redis
-    const client = createClient({
-      url: redisUrl
+    // Add error event listener
+    client.on('error', (err) => {
+      console.error('Redis client error:', err);
     });
+
+    console.log('Attempting to connect to Redis...');
     
-    console.log('Attempting Redis connection...');
-    await client.connect();
+    // Use Promise.race to add our own timeout
+    const connectionPromise = client.connect();
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Connection timeout after 15 seconds')), 15000);
+    });
+
+    await Promise.race([connectionPromise, timeoutPromise]);
     console.log('Redis connected successfully!');
     
-    // Test a simple operation
+    // Test basic operations with timeout
+    console.log('Testing Redis operations...');
     await client.set('test-key', 'test-value');
     const testValue = await client.get('test-key');
     await client.del('test-key');
-    
-    await client.disconnect();
-    console.log('Redis test completed successfully!');
+    console.log('Redis operations completed successfully!');
     
     return res.status(200).json({ 
       success: true,
-      message: 'Redis connection successful',
+      message: 'Redis connection and operations successful',
       testValue,
-      redisUrlFormat: {
-        hasCredentials: redisUrl.includes('@'),
-        protocol: redisUrl.split('://')[0]
-      }
+      timestamp: new Date().toISOString()
     });
     
   } catch (error) {
-    console.error('Redis test error:', error);
+    console.error('Redis test failed:', error);
+    
+    const errorDetails = {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      name: error instanceof Error ? error.name : 'UnknownError',
+      stack: error instanceof Error ? error.stack?.split('\n').slice(0, 5) : undefined
+    };
     
     return res.status(500).json({ 
       error: 'Redis connection failed',
-      details: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      details: errorDetails,
+      hasRedisUrl: !!process.env.REDIS_URL,
+      timestamp: new Date().toISOString()
     });
+    
+  } finally {
+    // Ensure client is disconnected
+    if (client) {
+      try {
+        console.log('Disconnecting Redis client...');
+        await client.disconnect();
+        console.log('Redis client disconnected successfully');
+      } catch (disconnectError) {
+        console.error('Error disconnecting Redis client:', disconnectError);
+      }
+    }
   }
-} 
+}
+
+// Default export for Vercel compatibility
+export default handler; 
