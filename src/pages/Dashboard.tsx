@@ -4,7 +4,7 @@ import { DashboardSidebar } from "../components/DashboardSidebar";
 import { PageEditor } from "../components/PageEditor";
 import { Eye, ArrowLeft, Download, Plus } from "lucide-react";
 import { SiteData, SitePageData, UserData } from "../types";
-import { RedisDataService } from "../api/redis-service";
+import { SupabaseClientService } from "../services/supabase-client";
 
 const Dashboard = () => {
   const [activePageId, setActivePageId] = useState<string>("");
@@ -65,7 +65,7 @@ const Dashboard = () => {
 
   const getUserData = async (): Promise<UserData | null> => {
     // For now, still use localStorage directly for user data
-    // Later we can move this to RedisDataService too
+    // Later we can move this to SupabaseClientService too
     const savedUser = localStorage.getItem('scope-user');
     if (savedUser) {
       try {
@@ -90,7 +90,7 @@ const Dashboard = () => {
       if (userData) {
         try {
           console.log('🔍 Checking for existing site data...');
-          const existingSiteData = await RedisDataService.getSiteData(userData.email);
+          const existingSiteData = await SupabaseClientService.getSiteData(userData.email);
           
           if (existingSiteData && existingSiteData.pages && existingSiteData.pages.length > 0) {
             console.log('📥 Found existing data, loading...');
@@ -149,7 +149,7 @@ const Dashboard = () => {
     const currentUser = user || userData;
     if (currentUser) {
       try {
-        const success = await RedisDataService.saveSiteData(currentUser.email, newSiteData);
+        const success = await SupabaseClientService.saveSiteData(currentUser.email, newSiteData);
         if (success) {
           console.log('✅ Successfully saved site data:', {
             userEmail: currentUser.email,

@@ -6,7 +6,7 @@ import { WireframeBody } from "../components/WireframeBody";
 import { WireframeFooter } from "../components/WireframeFooter";
 import { ArrowLeft, Edit } from "lucide-react";
 import { SiteData, UserData } from "../types";
-import { RedisDataService } from "../api/redis-service";
+import { SupabaseClientService } from "../services/supabase-client";
 
 const Preview = () => {
   const [currentPageId, setCurrentPageId] = useState<string>("");
@@ -14,7 +14,7 @@ const Preview = () => {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Load data using RedisDataService on component mount
+  // Load data using SupabaseClientService on component mount
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -24,8 +24,8 @@ const Preview = () => {
           const user = JSON.parse(savedUser);
           setUserData(user);
           
-          // Get site data using RedisDataService (handles both dev and prod)
-          const siteData = await RedisDataService.getSiteData(user.email);
+                      // Get site data using SupabaseClientService
+          const siteData = await SupabaseClientService.getSiteData(user.email);
           if (siteData) {
             console.log('✅ Loaded site data in preview:', siteData);
             setSiteData(siteData);

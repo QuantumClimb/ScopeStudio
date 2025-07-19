@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { DatabaseService } from '../src/services/database.js';
+import { SupabaseService } from '../src/services/supabase.js';
 import type { SiteData, UserData } from '../src/types/index.js';
 
 const app = express();
@@ -10,8 +10,8 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// Initialize database
-DatabaseService.init();
+// Initialize Supabase connection
+console.log('🔗 Connected to Supabase');
 
 // Health check
 app.get('/health', (req, res) => {
@@ -22,7 +22,7 @@ app.get('/health', (req, res) => {
 app.post('/api/users', async (req, res) => {
   try {
     const userData: UserData = req.body;
-    const result = DatabaseService.createUser(userData);
+    const result = await SupabaseService.createUser(userData);
     res.json({ success: true, user: userData });
   } catch (error) {
     console.error('Error creating user:', error);
@@ -33,7 +33,7 @@ app.post('/api/users', async (req, res) => {
 app.get('/api/users/:email', async (req, res) => {
   try {
     const { email } = req.params;
-    const user = DatabaseService.getUser(email);
+    const user = await SupabaseService.getUser(email);
     
     if (user) {
       res.json({ success: true, user });
@@ -52,7 +52,7 @@ app.post('/api/sites/:email', async (req, res) => {
     const { email } = req.params;
     const siteData: SiteData = req.body;
     
-    const result = DatabaseService.saveSiteData(email, siteData);
+    const result = await SupabaseService.saveSiteData(email, siteData);
     res.json({ success: true, message: 'Site data saved successfully' });
   } catch (error) {
     console.error('Error saving site data:', error);
@@ -63,7 +63,7 @@ app.post('/api/sites/:email', async (req, res) => {
 app.get('/api/sites/:email', async (req, res) => {
   try {
     const { email } = req.params;
-    const siteData = DatabaseService.getSiteData(email);
+    const siteData = await SupabaseService.getSiteData(email);
     
     if (siteData) {
       res.json({ success: true, siteData });
@@ -80,7 +80,7 @@ app.get('/api/sites/:email', async (req, res) => {
 app.get('/api/sites/:email/exists', async (req, res) => {
   try {
     const { email } = req.params;
-    const hasData = DatabaseService.hasSiteData(email);
+    const hasData = await SupabaseService.hasSiteData(email);
     res.json({ success: true, hasData });
   } catch (error) {
     console.error('Error checking site data:', error);
@@ -91,7 +91,7 @@ app.get('/api/sites/:email/exists', async (req, res) => {
 // Admin routes
 app.get('/api/admin/users', async (req, res) => {
   try {
-    const users = DatabaseService.getAllUsers();
+    const users = await SupabaseService.getAllUsers();
     res.json({ success: true, users });
   } catch (error) {
     console.error('Error getting all users:', error);
@@ -100,7 +100,7 @@ app.get('/api/admin/users', async (req, res) => {
 });
 
 // Error handling middleware
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Unhandled error:', err);
   res.status(500).json({ success: false, error: 'Internal server error' });
 });
@@ -115,6 +115,5 @@ app.listen(PORT, () => {
 // Graceful shutdown
 process.on('SIGINT', () => {
   console.log('\n🛑 Shutting down server...');
-  DatabaseService.close();
   process.exit(0);
 }); 

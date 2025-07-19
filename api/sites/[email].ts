@@ -1,57 +1,75 @@
-import { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from 'redis';
-import { SiteData } from '../../src/types';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { createClient } from '@supabase/supabase-js';
+import type { SiteData } from '../../src/types';
+
+// Supabase configuration
+const supabaseUrl = 'https://fihfnzxcsmzhprwakhhr.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpaGZuenhjc216aHByd2FraGhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA0NDAzNzUsImV4cCI6MjA2NjAxNjM3NX0.o5A3zpe_86t5bfNgrdp60LxkpLLRp9oOcr997OlUZwo';
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
   const { email } = req.query;
-  
   if (!email || typeof email !== 'string') {
     return res.status(400).json({ success: false, error: 'Email parameter required' });
   }
 
   try {
-    // Create Redis client
-    const client = createClient({ url: process.env.REDIS_URL });
-    await client.connect();
-    
-    if (req.method === 'GET') {
-      // Get site data for user
-      const siteDataStr = await client.get(`site:${email}`);
-      const siteData = siteDataStr ? JSON.parse(siteDataStr) : null;
-      
-      await client.disconnect();
-      return res.json({ success: true, siteData });
-      
-    } else if (req.method === 'POST') {
-      // Save site data for user
+    if (req.method === 'POST') {
+      // Save site data
       const siteData: SiteData = req.body;
-      
-      if (!siteData || !siteData.pages) {
-        await client.disconnect();
-        return res.status(400).json({ success: false, error: 'Invalid site data' });
+      const { data, error } = await supabase
+        .from('scopestudio_site_data')
+        .upsert({
+          user_email: email,
+          data: siteData
+        }, {
+          onConflict: 'user_email'
+        });
+
+      if (error) {
+        console.error('Error saving site data:', error);
+        return res.status(500).json({ success: false, error: 'Failed to save site data' });
       }
-      
-      await client.set(`site:${email}`, JSON.stringify(siteData));
-      
-      // Add to user list for admin purposes
-      const userListStr = await client.get('admin:users');
-      const userList = userListStr ? JSON.parse(userListStr) : [];
-      if (!userList.includes(email)) {
-        userList.push(email);
-        await client.set('admin:users', JSON.stringify(userList));
+
+      res.status(200).json({ success: true, message: 'Site data saved successfully' });
+    } else if (req.method === 'GET') {
+      // Get site data
+      const { data, error } = await supabase
+        .from('scopestudio_site_data')
+        .select('data')
+        .eq('user_email', email)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No rows returned
+          return res.status(200).json({ success: true, siteData: null });
+        }
+        console.error('Error getting site data:', error);
+        return res.status(500).json({ success: false, error: 'Failed to get site data' });
       }
-      
-      await client.disconnect();
-      return res.json({ success: true, message: 'Site data saved successfully' });
-      
+
+      if (data && data.data) {
+        res.status(200).json({ success: true, siteData: data.data });
+      } else {
+        res.status(200).json({ success: true, siteData: null });
+      }
     } else {
-      await client.disconnect();
-      res.setHeader('Allow', ['GET', 'POST']);
-      return res.status(405).json({ success: false, error: 'Method not allowed' });
+      res.status(405).json({ success: false, error: 'Method not allowed' });
     }
-    
   } catch (error) {
-    console.error('API error:', error);
-    return res.status(500).json({ success: false, error: 'Internal server error' });
+    console.error('API Error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 } 
