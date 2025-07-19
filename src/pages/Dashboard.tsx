@@ -89,31 +89,39 @@ const Dashboard = () => {
       
       if (userData) {
         try {
-          console.log('🔍 Checking for existing site data...');
+          console.log('🔍 [DEBUG] Checking for existing site data for user:', userData.email);
           const existingSiteData = await SupabaseClientService.getSiteData(userData.email);
           
+          console.log('🔍 [DEBUG] SupabaseClientService.getSiteData returned:', existingSiteData);
+          
           if (existingSiteData && existingSiteData.pages && existingSiteData.pages.length > 0) {
-            console.log('📥 Found existing data, loading...');
-            console.log('📊 Loaded existing site data:', {
+            console.log('📥 [DEBUG] Found existing data, loading...');
+            console.log('📊 [DEBUG] Loaded existing site data:', {
               pagesCount: existingSiteData.pages?.length || 0,
-              pageIds: existingSiteData.pages?.map((p: SitePageData) => p.id) || []
+              pageIds: existingSiteData.pages?.map((p: SitePageData) => p.id) || [],
+              pages: existingSiteData.pages?.map((p: SitePageData) => ({ id: p.id, name: p.name, title: p.title })) || []
             });
             
+            console.log('🔄 [DEBUG] Setting site data state with existing data');
             setSiteData(existingSiteData);
             const firstPageId = existingSiteData.pages[0]?.id || "";
-            console.log('🎯 Setting active page ID to:', firstPageId);
+            console.log('🎯 [DEBUG] Setting active page ID to:', firstPageId);
             setActivePageId(firstPageId);
           } else {
-            console.log('📭 No existing data found, initializing with starter content...');
+            console.log('📭 [DEBUG] No existing data found, initializing with starter content...');
+            console.log('📊 [DEBUG] Default site data:', {
+              pagesCount: defaultSiteData.pages?.length || 0,
+              pageIds: defaultSiteData.pages?.map((p: SitePageData) => p.id) || []
+            });
             // Only initialize with defaults if no data exists
             setSiteData(defaultSiteData);
             await saveSiteData(defaultSiteData, userData);
             const firstPageId = defaultSiteData.pages[0]?.id || "";
-            console.log('🎯 Setting active page ID to default:', firstPageId);
+            console.log('🎯 [DEBUG] Setting active page ID to default:', firstPageId);
             setActivePageId(firstPageId);
           }
         } catch (error) {
-          console.error('❌ Error loading site data:', error);
+          console.error('❌ [DEBUG] Error loading site data:', error);
           // On error, use defaults and save them
           setSiteData(defaultSiteData);
           await saveSiteData(defaultSiteData, userData);
@@ -133,41 +141,49 @@ const Dashboard = () => {
   }, []); // Keep empty dependency array since this should only run once on mount
 
   const saveSiteData = async (newSiteData: SiteData, user?: UserData) => {
-    console.log('💾 Saving site data:', {
+    console.log('🔍 [DEBUG] saveSiteData called with:', {
       pagesCount: newSiteData.pages.length,
-      user: user?.email || userData?.email
+      user: user?.email || userData?.email,
+      pages: newSiteData.pages.map(p => ({ id: p.id, name: p.name, title: p.title }))
     });
     
     // Validate the data structure before saving
     if (!newSiteData || !newSiteData.pages) {
-      console.error('❌ Invalid site data structure:', newSiteData);
+      console.error('❌ [DEBUG] Invalid site data structure:', newSiteData);
       return;
     }
     
+    console.log('🔄 [DEBUG] Setting local state with new site data');
     setSiteData(newSiteData);
     
     const currentUser = user || userData;
     if (currentUser) {
       try {
+        console.log('💾 [DEBUG] Calling SupabaseClientService.saveSiteData for:', currentUser.email);
         const success = await SupabaseClientService.saveSiteData(currentUser.email, newSiteData);
-        if (success) {
-          console.log('✅ Successfully saved site data:', {
+        if (success === true) {
+          console.log('✅ [DEBUG] Successfully saved site data to Supabase:', {
             userEmail: currentUser.email,
-            pagesCount: newSiteData.pages.length
+            pagesCount: newSiteData.pages.length,
+            success: success
           });
         } else {
-          console.error('❌ Failed to save site data');
+          console.error('❌ [DEBUG] Supabase save failed or returned unexpected value:', success);
         }
       } catch (error) {
-        console.error('❌ Error saving site data:', error);
+        console.error('❌ [DEBUG] Error saving site data to Supabase:', error);
       }
     } else {
-      console.warn('⚠️ No user data available, cannot save site data');
+      console.warn('⚠️ [DEBUG] No user data available, cannot save site data');
     }
   };
 
   const updatePageData = async (pageId: string, data: Partial<SitePageData>) => {
-    console.log('📝 Updating page data:', { pageId, data });
+    console.log('🔍 [DEBUG] updatePageData called:', { 
+      pageId, 
+      data,
+      currentSiteDataPages: siteData.pages.map(p => ({ id: p.id, name: p.name, title: p.title }))
+    });
     
     const newSiteData = {
       ...siteData,
@@ -177,6 +193,11 @@ const Dashboard = () => {
           : page
       )
     };
+    
+    console.log('🔄 [DEBUG] Created new site data with updated page:', {
+      updatedPageId: pageId,
+      newPages: newSiteData.pages.map(p => ({ id: p.id, name: p.name, title: p.title }))
+    });
     
     await saveSiteData(newSiteData);
   };

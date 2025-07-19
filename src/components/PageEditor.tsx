@@ -19,12 +19,26 @@ export const PageEditor = ({ pageId, data, onUpdate }: PageEditorProps) => {
   }, [pageId, data]);
 
   const handleSave = () => {
+    console.log('🔍 [DEBUG] PageEditor handleSave called with formData:', {
+      pageId,
+      formData: {
+        id: formData.id,
+        name: formData.name,
+        title: formData.title,
+        heroTitle: formData.heroTitle,
+        heroSubheading: formData.heroSubheading,
+        bodyContent: formData.bodyContent?.substring(0, 50) + '...'
+      }
+    });
+    
     onUpdate(formData);
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 2000);
   };
 
   const handleChange = (field: keyof SitePageData, value: string) => {
+    console.log('🔍 [DEBUG] PageEditor handleChange called:', { field, value: value.substring(0, 50) + '...' });
+    
     setFormData((prev) => ({
       ...prev,
       [field]: value

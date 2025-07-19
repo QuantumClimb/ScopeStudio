@@ -66,9 +66,52 @@ export const SupabaseClientService = {
     }
   },
 
+  createOrGetUser: async (email: string, plan: 'free' | 'pro' = 'free') => {
+    console.log('🔍 [DEBUG] SupabaseClientService.createOrGetUser called with:', { email, plan });
+    
+    try {
+      // First try to get existing user
+      console.log('🔍 [DEBUG] Checking if user exists:', email);
+      const existingUser = await SupabaseClientService.getUser(email);
+      
+      if (existingUser) {
+        console.log('✅ [DEBUG] User already exists:', existingUser);
+        return existingUser;
+      }
+      
+      // If user doesn't exist, create new user
+      console.log('🔍 [DEBUG] User does not exist, creating new user');
+      await SupabaseClientService.createUser({ email, plan, isAuthenticated: true });
+      
+      // After creating, get the user to return
+      const createdUser = await SupabaseClientService.getUser(email);
+      if (createdUser) {
+        console.log('✅ [DEBUG] New user created and retrieved:', createdUser);
+        return createdUser;
+      } else {
+        console.error('❌ [DEBUG] Failed to create new user');
+        return null;
+      }
+    } catch (error) {
+      console.error('❌ [DEBUG] Exception in createOrGetUser:', error);
+      return null;
+    }
+  },
+
   // Site data operations
   saveSiteData: async (userEmail: string, siteData: SiteData) => {
+    console.log('🔍 [DEBUG] SupabaseClientService.saveSiteData called with:', {
+      userEmail,
+      siteDataPages: siteData.pages?.map(p => ({ id: p.id, name: p.name, title: p.title })) || [],
+      siteDataKeys: Object.keys(siteData)
+    });
+    
     try {
+      console.log('💾 [DEBUG] Calling Supabase upsert with data:', {
+        user_email: userEmail,
+        data: siteData
+      });
+      
       const { data, error } = await supabase
         .from('scopestudio_site_data')
         .upsert({
@@ -78,42 +121,68 @@ export const SupabaseClientService = {
           onConflict: 'user_email'
         });
 
+      console.log('🔍 [DEBUG] Supabase upsert response:', { 
+        data, 
+        error, 
+        hasData: !!data, 
+        dataType: typeof data,
+        errorCode: error?.code,
+        errorMessage: error?.message 
+      });
+
       if (error) {
-        console.error('❌ Error saving site data:', error);
+        console.error('❌ [DEBUG] Supabase error saving site data:', error);
         throw error;
       }
 
-      console.log('✅ Site data saved for user:', userEmail);
-      return data;
+      console.log('✅ [DEBUG] Site data saved successfully for user:', userEmail, {
+        returnedData: data,
+        dataIsNull: data === null,
+        dataIsUndefined: data === undefined
+      });
+      // Return true on success, even if data is null (which is normal for upsert)
+      return true;
     } catch (error) {
-      console.error('❌ Error saving site data:', error);
+      console.error('❌ [DEBUG] Exception in saveSiteData:', error);
       throw error;
     }
   },
 
   getSiteData: async (userEmail: string): Promise<SiteData | null> => {
+    console.log('🔍 [DEBUG] SupabaseClientService.getSiteData called for user:', userEmail);
+    
     try {
+      console.log('🔍 [DEBUG] Calling Supabase select query');
       const { data, error } = await supabase
         .from('scopestudio_site_data')
         .select('data')
         .eq('user_email', userEmail)
         .single();
 
+      console.log('🔍 [DEBUG] Supabase select response:', { data, error });
+
       if (error) {
         if (error.code === 'PGRST116') {
-          // No rows returned
+          console.log('📭 [DEBUG] No rows returned (PGRST116)');
           return null;
         }
-        console.error('❌ Error getting site data:', error);
+        console.error('❌ [DEBUG] Supabase error getting site data:', error);
         return null;
       }
 
       if (data && data.data) {
+        console.log('✅ [DEBUG] Found site data:', {
+          hasData: !!data.data,
+          dataKeys: Object.keys(data.data),
+          pagesCount: data.data.pages?.length || 0
+        });
         return data.data as SiteData;
       }
+      
+      console.log('📭 [DEBUG] No data found in response');
       return null;
     } catch (error) {
-      console.error('❌ Error getting site data:', error);
+      console.error('❌ [DEBUG] Exception in getSiteData:', error);
       return null;
     }
   },

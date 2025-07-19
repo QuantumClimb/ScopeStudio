@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Mail, Lock, User } from "lucide-react";
+import { SupabaseClientService } from "@/services/supabase-client";
 
 const Login = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -8,20 +9,36 @@ const Login = () => {
   const [password, setPassword] = useState("password123"); // Default testing password
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log('🔐 Login attempt:', { email, isSignUp });
     
-    // Mock authentication - in real app would connect to backend
-    const userData = {
-      email,
-      plan: "free", // Default to free plan
-      isAuthenticated: true
-    };
-    
-    localStorage.setItem('scope-user', JSON.stringify(userData));
-    console.log('✅ User authenticated and saved:', userData);
-    navigate('/dashboard');
+    try {
+      // Create or get user in database
+      console.log('🔍 [DEBUG] Creating/getting user in database:', email);
+      const userData = await SupabaseClientService.createOrGetUser(email, "free");
+      
+      if (userData) {
+        console.log('✅ [DEBUG] User created/retrieved from database:', userData);
+        
+        // Store in localStorage for frontend
+        const localUserData = {
+          email,
+          plan: userData.plan,
+          isAuthenticated: true
+        };
+        
+        localStorage.setItem('scope-user', JSON.stringify(localUserData));
+        console.log('✅ User authenticated and saved:', localUserData);
+        navigate('/dashboard');
+      } else {
+        console.error('❌ [DEBUG] Failed to create/get user from database');
+        alert('Login failed. Please try again.');
+      }
+    } catch (error) {
+      console.error('❌ [DEBUG] Error during login:', error);
+      alert('Login failed. Please try again.');
+    }
   };
 
   return (
