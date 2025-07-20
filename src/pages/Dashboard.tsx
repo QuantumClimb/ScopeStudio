@@ -94,8 +94,17 @@ const Dashboard = () => {
           
           console.log('🔍 [DEBUG] SupabaseClientService.getSiteData returned:', existingSiteData);
           
-          if (existingSiteData && existingSiteData.pages && existingSiteData.pages.length > 0) {
-            console.log('📥 [DEBUG] Found existing data, loading...');
+          // Check if user has valid starter content (all 4 pages: home, about, services, contact)
+          const hasValidStarterContent = existingSiteData && 
+            existingSiteData.pages && 
+            existingSiteData.pages.length >= 4 &&
+            existingSiteData.pages.some(p => p.id === 'home') &&
+            existingSiteData.pages.some(p => p.id === 'about') &&
+            existingSiteData.pages.some(p => p.id === 'services') &&
+            existingSiteData.pages.some(p => p.id === 'contact');
+          
+          if (hasValidStarterContent) {
+            console.log('📥 [DEBUG] Found valid existing data, loading...');
             console.log('📊 [DEBUG] Loaded existing site data:', {
               pagesCount: existingSiteData.pages?.length || 0,
               pageIds: existingSiteData.pages?.map((p: SitePageData) => p.id) || [],
@@ -108,12 +117,12 @@ const Dashboard = () => {
             console.log('🎯 [DEBUG] Setting active page ID to:', firstPageId);
             setActivePageId(firstPageId);
           } else {
-            console.log('📭 [DEBUG] No existing data found, initializing with starter content...');
+            console.log('📭 [DEBUG] No valid starter content found, initializing with starter content...');
             console.log('📊 [DEBUG] Default site data:', {
               pagesCount: defaultSiteData.pages?.length || 0,
               pageIds: defaultSiteData.pages?.map((p: SitePageData) => p.id) || []
             });
-            // Only initialize with defaults if no data exists
+            // Always initialize with defaults for new users or users without valid starter content
             setSiteData(defaultSiteData);
             await saveSiteData(defaultSiteData, userData);
             const firstPageId = defaultSiteData.pages[0]?.id || "";
@@ -127,12 +136,12 @@ const Dashboard = () => {
           await saveSiteData(defaultSiteData, userData);
           setActivePageId(defaultSiteData.pages[0].id);
         }
-              } else {
-          console.log('👤 No user data available');
-          const firstPageId = defaultSiteData.pages[0]?.id || "";
-          console.log('🎯 Setting active page ID to default (no user):', firstPageId);
-          setActivePageId(firstPageId);
-        }
+      } else {
+        console.log('👤 No user data available');
+        const firstPageId = defaultSiteData.pages[0]?.id || "";
+        console.log('🎯 Setting active page ID to default (no user):', firstPageId);
+        setActivePageId(firstPageId);
+      }
       
       setIsInitialized(true);
     };
@@ -383,6 +392,32 @@ const Dashboard = () => {
         </header>
 
         <main className="flex-1 p-6">
+          {/* Welcome message for new users with starter content */}
+          {siteData.pages.length === 4 && 
+           siteData.pages.some(p => p.id === 'home') &&
+           siteData.pages.some(p => p.id === 'about') &&
+           siteData.pages.some(p => p.id === 'services') &&
+           siteData.pages.some(p => p.id === 'contact') && (
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-blue-800">
+                    Welcome to ScopeStudio! 🎉
+                  </h3>
+                  <div className="mt-2 text-sm text-blue-700">
+                    <p>You're starting with our starter content: <strong>Home</strong>, <strong>About</strong>, <strong>Services</strong>, and <strong>Contact</strong> pages.</p>
+                    <p className="mt-1">Edit any page to see your changes in real-time, then click "Launch Preview" to see your wireframe!</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {currentPage ? (
             <PageEditor
               pageId={activePageId}
