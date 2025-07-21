@@ -2,12 +2,18 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { DashboardSidebar } from "../components/DashboardSidebar";
 import { PageEditor } from "../components/PageEditor";
-import { Eye, ArrowLeft, Download, Plus } from "lucide-react";
+import { Eye, ArrowLeft, Plus } from "lucide-react";
 import { SiteData, SitePageData, UserData } from "../types";
 import { SupabaseClientService } from "../services/supabase-client";
+import { ExportDialog } from "../components/ExportDialog";
+import { MobileNavigation } from "../components/MobileNavigation";
+import { MobileBottomNavigation } from "../components/MobileBottomNavigation";
+import { useMobile } from "../hooks/use-mobile";
+import { analyticsService } from "../services/analytics-service";
 
 const Dashboard = () => {
   const [activePageId, setActivePageId] = useState<string>("");
+  const { isMobile, shouldShowSidebar, shouldShowMobileMenu } = useMobile();
   
   // Default site structure with ready-made pages (only used for new users)
   const defaultSiteData: SiteData = {
@@ -84,6 +90,9 @@ const Dashboard = () => {
       console.log('🔄 Loading user and site data...');
       
       const userData = await getUserData();
+      
+      // Track dashboard page view
+      analyticsService.trackPageView('dashboard', userData?.email);
       console.log('👤 Loaded user data:', userData);
       setUserData(userData);
       
@@ -190,145 +199,67 @@ const Dashboard = () => {
   const updatePageData = async (pageId: string, data: Partial<SitePageData>) => {
     console.log('🔍 [DEBUG] updatePageData called:', { 
       pageId, 
-      data,
-      currentSiteDataPages: siteData.pages.map(p => ({ id: p.id, name: p.name, title: p.title }))
+      dataKeys: Object.keys(data),
+      dataValues: Object.values(data).map(v => typeof v === 'string' ? v.substring(0, 50) + '...' : v)
     });
     
-    const newSiteData = {
+    const updatedSiteData = {
       ...siteData,
-      pages: siteData.pages.map(page => 
-        page.id === pageId 
-          ? { ...page, ...data } 
-          : page
+      pages: siteData.pages.map(page =>
+        page.id === pageId ? { ...page, ...data } : page
       )
     };
     
-    console.log('🔄 [DEBUG] Created new site data with updated page:', {
-      updatedPageId: pageId,
-      newPages: newSiteData.pages.map(p => ({ id: p.id, name: p.name, title: p.title }))
-    });
-    
-    await saveSiteData(newSiteData);
+    await saveSiteData(updatedSiteData);
   };
 
   const addNewPage = async () => {
-    console.log('🆕 Adding new page...');
-    
-    if (!userData) {
-      console.error('❌ No user data available for adding page');
-      return;
-    }
-    
-    const maxPages = userData.plan === 'pro' ? 6 : 4; // Increased limit since no subpages
-    console.log(`📊 Current pages: ${siteData.pages.length}, Max allowed: ${maxPages}`);
-    
-    if (siteData.pages.length >= maxPages) {
-      const message = `You've reached the maximum number of pages for your ${userData.plan} plan.`;
-      console.warn('⚠️', message);
-      alert(message);
-      return;
-    }
-
     const newPageId = `page-${Date.now()}`;
     const newPage: SitePageData = {
       id: newPageId,
-      name: `Page ${siteData.pages.length + 1}`,
-      title: "New Page",
-      description: "Description for new page",
-      heroTitle: "New Page Title",
-      heroSubheading: "Page subheading",
-      heroImageUrl: "",
-      bodyContent: "Add your content here.",
-      bodyImageUrl: ""
+      name: `New Page ${siteData.pages.length + 1}`,
+      title: `New Page ${siteData.pages.length + 1}`,
+      description: "Add your page description here",
+      heroTitle: "Your Hero Title",
+      heroSubheading: "Your hero subheading goes here",
+      bodyContent: "Add your page content here..."
     };
 
-    console.log('📄 Created new page object:', newPage);
-
-    const newSiteData = {
+    const updatedSiteData = {
       ...siteData,
       pages: [...siteData.pages, newPage]
     };
-    
-    await saveSiteData(newSiteData);
+
+    await saveSiteData(updatedSiteData);
     setActivePageId(newPageId);
-    
-    console.log('✅ New page added and set as active:', newPageId);
-  };
-
-  const exportSite = () => {
-    if (!userData || !siteData) {
-      alert('No data to export');
-      return;
-    }
-
-    try {
-      // Create export data with metadata
-      const exportData = {
-        metadata: {
-          exportedAt: new Date().toISOString(),
-          userEmail: userData.email,
-          plan: userData.plan,
-          version: '1.0'
-        },
-        siteData: siteData
-      };
-
-      // Convert to JSON string
-      const jsonString = JSON.stringify(exportData, null, 2);
-
-      // Create downloadable file
-      const blob = new Blob([jsonString], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-
-      // Create download link
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `scopestudio-${userData.email}-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      // Clean up
-      URL.revokeObjectURL(url);
-
-      console.log('✅ Site data exported successfully');
-      alert('Site data exported successfully!');
-    } catch (error) {
-      console.error('❌ Error exporting site data:', error);
-      alert('Error exporting site data. Please try again.');
-    }
   };
 
   const handlePageSelect = (pageId: string) => {
-    console.log('Selecting page:', pageId);
+    console.log('🔍 [DEBUG] handlePageSelect called with pageId:', pageId);
     setActivePageId(pageId);
   };
 
-  const currentPage = siteData.pages.find(p => p.id === activePageId) || siteData.pages[0];
+  const handleExport = () => {
+    console.log('📤 Export triggered');
+    // Export functionality is handled by ExportDialog component
+  };
 
-  console.log('🔍 Dashboard state:', { 
-    activePageId, 
-    currentPageExists: !!currentPage,
-    totalPages: siteData.pages.length,
-    pageIds: siteData.pages.map(p => p.id),
-    isInitialized 
-  });
+  const handlePreview = () => {
+    console.log('👁️ Preview triggered');
+    // Preview functionality is handled by the Link component
+  };
 
-  // If no current page found but we have pages, select the first one
-  useEffect(() => {
-    if (isInitialized && siteData.pages.length > 0 && !siteData.pages.find(p => p.id === activePageId)) {
-      const firstPageId = siteData.pages[0].id;
-      console.log('🔄 No current page found, defaulting to first page:', firstPageId);
-      setActivePageId(firstPageId);
-    }
-  }, [activePageId, siteData.pages, isInitialized]);
+  const currentPage = siteData.pages.find(page => page.id === activePageId);
 
   if (!userData) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-4">Please log in to access the dashboard</h2>
-          <Link to="/login" className="text-indigo-600 hover:text-indigo-800">
+      <div className="min-h-screen mobile-flex-center mobile-container">
+        <div className="mobile-card text-center">
+          <h2 className="mobile-text-large mb-4">Please Log In</h2>
+          <p className="mobile-text-small mb-6">
+            You need to be logged in to access the dashboard.
+          </p>
+          <Link to="/login" className="mobile-btn-primary">
             Go to Login
           </Link>
         </div>
@@ -338,9 +269,10 @@ const Dashboard = () => {
 
   if (!isInitialized) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-4">Loading...</h2>
+      <div className="min-h-screen mobile-flex-center">
+        <div className="mobile-loading">
+          <div className="mobile-loading-spinner"></div>
+          <p className="mobile-text-small mt-4">Loading...</p>
         </div>
       </div>
     );
@@ -348,68 +280,86 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <DashboardSidebar 
-        siteData={siteData}
-        activePageId={activePageId}
-        onPageSelect={handlePageSelect}
-        onAddPage={addNewPage}
-        userData={userData}
-      />
+      {/* Desktop Sidebar */}
+      {shouldShowSidebar && (
+        <DashboardSidebar 
+          siteData={siteData}
+          activePageId={activePageId}
+          onPageSelect={handlePageSelect}
+          onAddPage={addNewPage}
+          userData={userData}
+        />
+      )}
+      
+      {/* Mobile Navigation */}
+      {shouldShowMobileMenu && (
+        <MobileNavigation
+          userData={userData}
+          siteData={siteData}
+          activePageId={activePageId}
+          onPageSelect={handlePageSelect}
+          onExport={handleExport}
+          onPreview={handlePreview}
+        />
+      )}
       
       <div className="flex-1 flex flex-col">
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Link to="/" className="text-gray-500 hover:text-gray-700">
-                <ArrowLeft size={20} />
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-800">
-                  ScopeStudio Dashboard
-                </h1>
-                <p className="text-sm text-gray-500">
-                  {userData.email} • {userData.plan} plan
-                </p>
+        {/* Header */}
+        <header className="ios-header mobile-safe-top">
+          <div className="mobile-container">
+            <div className="mobile-flex-between mobile-py">
+              <div className="mobile-flex-center mobile-inline-stack">
+                <Link to="/" className="mobile-haptic">
+                  <ArrowLeft size={20} className="text-gray-500" />
+                </Link>
+                <div>
+                  <h1 className="mobile-heading-responsive text-gray-800">
+                    ScopeStudio Dashboard
+                  </h1>
+                  <p className="mobile-text-small text-gray-500">
+                    {userData.email} • {userData.plan} plan
+                  </p>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={exportSite}
-                className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-              >
-                <Download className="mr-2" size={16} />
-                Export Site
-              </button>
-              <Link 
-                to="/preview"
-                className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-              >
-                <Eye className="mr-2" size={16} />
-                Launch Preview
-              </Link>
+              <div className="mobile-flex-center mobile-inline-stack">
+                <ExportDialog 
+                  siteData={siteData}
+                  userData={userData}
+                  onExport={() => console.log('✅ Site exported successfully')}
+                />
+                <Link 
+                  to="/preview"
+                  className="mobile-btn-primary mobile-haptic"
+                >
+                  <Eye className="mr-2" size={16} />
+                  <span className="mobile-only">Preview</span>
+                  <span className="desktop-only">Launch Preview</span>
+                </Link>
+              </div>
             </div>
           </div>
         </header>
 
-        <main className="flex-1 p-6">
+        {/* Main Content */}
+        <main className="flex-1 mobile-container mobile-section mobile-safe-bottom">
           {/* Welcome message for new users with starter content */}
           {siteData.pages.length === 4 && 
            siteData.pages.some(p => p.id === 'home') &&
            siteData.pages.some(p => p.id === 'about') &&
            siteData.pages.some(p => p.id === 'services') &&
            siteData.pages.some(p => p.id === 'contact') && (
-            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-start">
+            <div className="mobile-card mb-6 bg-blue-50 border-blue-200">
+              <div className="mobile-flex-center">
                 <div className="flex-shrink-0">
                   <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-blue-800">
+                  <h3 className="mobile-text-medium text-blue-800">
                     Welcome to ScopeStudio! 🎉
                   </h3>
-                  <div className="mt-2 text-sm text-blue-700">
+                  <div className="mt-2 mobile-text-small text-blue-700">
                     <p>You're starting with our starter content: <strong>Home</strong>, <strong>About</strong>, <strong>Services</strong>, and <strong>Contact</strong> pages.</p>
                     <p className="mt-1">Edit any page to see your changes in real-time, then click "Launch Preview" to see your wireframe!</p>
                   </div>
@@ -425,25 +375,35 @@ const Dashboard = () => {
               onUpdate={(data) => updatePageData(activePageId, data)}
             />
           ) : (
-            <div className="flex items-center justify-center h-64">
-              <div className="text-center">
-                <h3 className="text-lg font-medium text-gray-800 mb-2">
-                  No page selected
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  Select a page from the sidebar to start editing
-                </p>
-                <button
-                  onClick={addNewPage}
-                  className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-                >
-                  <Plus className="mr-2" size={16} />
-                  Add New Page
-                </button>
+            <div className="mobile-empty">
+              <div className="mobile-empty-icon">
+                <svg fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                </svg>
               </div>
+              <h3 className="mobile-empty-title">
+                No page selected
+              </h3>
+              <p className="mobile-empty-description">
+                Select a page from the sidebar to start editing
+              </p>
+              <button
+                onClick={addNewPage}
+                className="mobile-btn-primary mobile-haptic mt-4"
+              >
+                <Plus className="mr-2" size={16} />
+                Add New Page
+              </button>
             </div>
           )}
         </main>
+
+        {/* Mobile Bottom Navigation */}
+        <MobileBottomNavigation
+          onPreview={handlePreview}
+          onExport={handleExport}
+          activePageId={activePageId}
+        />
       </div>
     </div>
   );
